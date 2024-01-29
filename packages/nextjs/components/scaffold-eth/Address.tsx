@@ -90,7 +90,7 @@ export const Address = ({ address, disableAddressLink, format, size = "base" }: 
       {disableAddressLink ? (
         <span className={`ml-1.5 text-${size} font-normal`}>{displayAddress}</span>
       ) : targetNetwork.id === hardhat.id ? (
-        <span className={`ml-1.5 text-${size} font-normal`}>
+        <span className={`ml-1.5 text-${size} font-bold`}>
           <Link href={blockExplorerAddressLink}>{displayAddress}</Link>
         </span>
       ) : (

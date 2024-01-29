@@ -1,9 +1,12 @@
 import { useEffect, useState } from "react";
+import { loadGetInitialProps } from "next/dist/shared/lib/utils";
+import Image from "next/image";
 import "chart.js/auto";
 import type { NextPage } from "next";
 import { Doughnut } from "react-chartjs-2";
 import * as XLSX from "xlsx";
 import { MetaHeader } from "~~/components/MetaHeader";
+import { Address } from "~~/components/scaffold-eth";
 
 const Home: NextPage = () => {
   const getCategoryCounts = async () => {
@@ -25,7 +28,7 @@ const Home: NextPage = () => {
         if (category !== undefined) {
           categoryCounts[category] = (categoryCounts[category] || 0) + 1;
         } else {
-          console.log("Undefined category found in data:", row);
+          console.log("");
         }
       });
 
@@ -56,16 +59,11 @@ const Home: NextPage = () => {
       const sheet = workbook.Sheets[sheetName];
 
       const data = XLSX.utils.sheet_to_json(sheet);
-      console.log("Data:", data); // Log the data to see its structure
 
       const descriptionLengths = data.map((row: any) => row["Description LEN"]);
-      console.log("Description Lengths:", descriptionLengths); // Log the description lengths
 
       const totalLength = descriptionLengths.reduce((total, length) => total + length, 0);
       const averageLength = totalLength / descriptionLengths.length;
-
-      console.log("Total Length:", totalLength);
-      console.log("Average Length:", averageLength);
 
       setAverageDescriptionLength(parseFloat(averageLength.toFixed(2)));
       setTotalDescriptionLength(parseFloat(totalLength.toFixed(2)));
@@ -74,11 +72,47 @@ const Home: NextPage = () => {
     }
   };
 
+  const [longestDescriptionProject, setLongestDescriptionProject] = useState<any | null>(null);
+
+  const findLongestDescriptionProject = async () => {
+    try {
+      const response = await fetch("/BuildsBG_only-data.xlsx");
+      const arrayBuffer = await response.arrayBuffer();
+      const workbook = XLSX.read(arrayBuffer, { type: "array" });
+
+      const sheetName = workbook.SheetNames[0];
+      const sheet = workbook.Sheets[sheetName];
+
+      const data = XLSX.utils.sheet_to_json(sheet);
+      console.log("Data: ", data);
+
+      // Find the row with the longest description
+      const projectWithLongestDescription = data.reduce(
+        (maxRow: any, currentRow: any) => {
+          const currentDescription = currentRow["Description LEN"];
+          const maxDescription = maxRow["Description LEN"] || "";
+
+          if (currentDescription && currentDescription > maxDescription.length) {
+            return currentRow; // Update maxRow to the currentRow when a longer description is found
+          }
+
+          return maxRow;
+        },
+        { "Description LEN": "" },
+      );
+
+      setLongestDescriptionProject(projectWithLongestDescription);
+    } catch (error) {
+      console.error("Error finding project with longest description:", error);
+    }
+  };
+
   useEffect(() => {
     getCategoryCounts().then(counts => {
       setCategoryCounts(counts);
     });
     getAverageDescriptionLength();
+    findLongestDescriptionProject();
   }, []);
 
   const chartData = {
@@ -155,20 +189,45 @@ const Home: NextPage = () => {
         </div>
 
         <div className="flex justify-center bg-base-300 w-75 px-8 py-6 mt-10 rounded-2xl">
-          <div className="flex justify-center items-center gap-12 flex-row sm:flex-row">
-            <h1 className="text-2xl font-bold"> For {getTotalCount()} buidl, total description length: </h1>
-            <h1 className="text-2xl font-bold">
-              {totalDescriptionLength !== null ? totalDescriptionLength : "Loading..."}
-            </h1>
+          <div className="flex justify-center items-center gap-12 flex-col sm:flex-row">
+            <div className="text-center mb-4 sm:mb-0">
+              <h1 className="text-2xl font-bold">Total Description Length:</h1>
+              <p className="text-2xl font-bold text-[#e00000]">
+                {totalDescriptionLength !== null ? totalDescriptionLength : "Loading..."}
+              </p>
+            </div>
+            <div className="text-center">
+              <h1 className="text-2xl font-bold">Average Description Length:</h1>
+              <p className="text-2xl font-bold text-[#e00000]">
+                {averageDescriptionLength !== null ? averageDescriptionLength : "Loading..."}
+              </p>
+            </div>
           </div>
         </div>
 
         <div className="flex justify-center bg-base-300 w-75 px-8 py-6 mt-10 rounded-2xl">
-          <div className="flex justify-center items-center gap-12 flex-row sm:flex-row">
-            <h1 className="text-2xl font-bold"> For {getTotalCount()} buidl, average description length: </h1>
-            <h1 className="text-2xl font-bold">
-              {averageDescriptionLength !== null ? averageDescriptionLength : "Loading..."}
-            </h1>
+          <div className="flex justify-center items-center px-10 ml-10 flex-col sm:flex-row">
+            <div className="text-center ">
+              <h1 className="text-2xl font-bold uppercase">The Buidl with longest description:</h1>
+              <div className="max-w-md rounded overflow-hidden shadow-lg mt-6">
+                {longestDescriptionProject !== null && (
+                  <>
+                    <div className="max-w-md rounded overflow-hidden shadow-lg mt-6 hover:bg-primary">
+                      <div className="mb-6 ml-4">
+                        <Address address={longestDescriptionProject.Builder} />
+                      </div>
+                      <div className="font-bold text-xl mb-2">{longestDescriptionProject.Name}</div>
+                      <div className="px-6 py-4 my-10">
+                        <p className="text-gray-700 text-base">{longestDescriptionProject.Desc}</p>
+                      </div>
+                      <span className="inline-block bg-[#e00000] rounded-full px-3 py-1 text-sm font-semibold text-gray-200 mr-2 mb-2">
+                        {longestDescriptionProject["CurationType"]}
+                      </span>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       </div>
